@@ -131,3 +131,44 @@ def dedupe_servers(servers):
         if cur is None or _SCOPE_RANK[s["scope"]] > _SCOPE_RANK[cur["scope"]]:
             best[s["name"]] = s
     return list(best.values())
+
+def settings_files(home, project_path):
+    return [
+        Path(home) / ".claude" / "settings.json",
+        Path(project_path) / ".claude" / "settings.json",
+        Path(project_path) / ".claude" / "settings.local.json",
+    ]
+
+def _read_json(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except Exception:
+        return {}
+
+def discover_plugins(home, project_path):
+    found = {}
+    for sf in settings_files(home, project_path):
+        if sf.exists():
+            for p in (_read_json(sf).get("enabledPlugins") or []):
+                found[p] = sf.name
+    return [{"name": k, "source": v} for k, v in found.items()]
+
+def discover_hooks(home, project_path):
+    hooks = []
+    for sf in settings_files(home, project_path):
+        if sf.exists():
+            h = _read_json(sf).get("hooks") or {}
+            for event, entries in h.items():
+                count = len(entries) if isinstance(entries, list) else 1
+                hooks.append({"event": event, "source": sf.name, "count": count})
+    return hooks
+
+def measure_memory(home, project_path):
+    slug = slug_for(project_path)
+    mem_dir = Path(home) / ".claude" / "projects" / slug / "memory"
+    files = []
+    if mem_dir.exists():
+        for f in sorted(mem_dir.glob("*.md")):
+            text = f.read_text(errors="ignore")
+            files.append({"name": f.name, "bytes": len(text.encode()), "lines": text.count("\n") + 1})
+    return {"dir": str(mem_dir), "files": files}

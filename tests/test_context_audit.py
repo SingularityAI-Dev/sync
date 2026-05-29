@@ -80,3 +80,34 @@ def test_dedupe_servers_prefers_specific_scope():
     raw = [{"name": "x", "scope": "global"}, {"name": "x", "scope": "project-mcpjson"}]
     out = mod.dedupe_servers(raw)
     assert len(out) == 1 and out[0]["scope"] == "project-mcpjson"
+
+def test_discover_plugins(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / ".claude").mkdir(parents=True)
+    proj = tmp_path / "proj"; (proj / ".claude").mkdir(parents=True)
+    (home / ".claude" / "settings.json").write_text('{"enabledPlugins": ["a@m", "superpowers@m"]}')
+    (proj / ".claude" / "settings.json").write_text('{"enabledPlugins": ["b@m"]}')
+    names = {p["name"] for p in mod.discover_plugins(home, proj)}
+    assert names == {"a@m", "superpowers@m", "b@m"}
+
+def test_discover_hooks(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / ".claude").mkdir(parents=True)
+    proj = tmp_path / "proj"; (proj / ".claude").mkdir(parents=True)
+    (proj / ".claude" / "settings.json").write_text('{"hooks": {"PreToolUse": [{"x": 1}, {"y": 2}]}}')
+    hooks = mod.discover_hooks(home, proj)
+    assert any(h["event"] == "PreToolUse" and h["count"] == 2 for h in hooks)
+
+def test_measure_memory(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"
+    proj = tmp_path / "proj"; proj.mkdir()
+    slug = mod.slug_for(proj)
+    memdir = home / ".claude" / "projects" / slug / "memory"
+    memdir.mkdir(parents=True)
+    (memdir / "brain.md").write_text("line\n" * 10)
+    (memdir / "feedback_x.md").write_text("hello world")
+    mem = mod.measure_memory(home, proj)
+    files = {f["name"]: f for f in mem["files"]}
+    assert files["brain.md"]["lines"] == 11
+    assert files["feedback_x.md"]["bytes"] == 11
