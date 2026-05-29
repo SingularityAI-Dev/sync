@@ -172,3 +172,10 @@ def measure_memory(home, project_path):
             text = f.read_text(errors="ignore")
             files.append({"name": f.name, "bytes": len(text.encode()), "lines": text.count("\n") + 1})
     return {"dir": str(mem_dir), "files": files}
+
+def est_server_tokens(name, cfg):
+    tc = cfg["known_tool_counts"].get(name, cfg["default_tool_count"])
+    return tc * cfg["per_tool_tokens"], tc
+
+def est_memory_tokens(nbytes, cfg):
+    return nbytes // cfg["memory_chars_per_token"]

@@ -111,3 +111,17 @@ def test_measure_memory(tmp_path):
     files = {f["name"]: f for f in mem["files"]}
     assert files["brain.md"]["lines"] == 11
     assert files["feedback_x.md"]["bytes"] == 11
+
+def test_est_server_tokens_known_and_default():
+    mod = load_mod()
+    cfg = mod.load_config(None)
+    cfg["known_tool_counts"] = {"big": 80}
+    est, tc = mod.est_server_tokens("big", cfg)
+    assert tc == 80 and est == 80 * 150
+    est2, tc2 = mod.est_server_tokens("unknown", cfg)
+    assert tc2 == 25 and est2 == 25 * 150
+
+def test_est_memory_tokens():
+    mod = load_mod()
+    cfg = mod.load_config(None)
+    assert mod.est_memory_tokens(400, cfg) == 100
