@@ -206,3 +206,41 @@ def test_format_text_smoke(tmp_path):
         "uncertain": []}
     out = mod.format_text(rep)
     assert "Context Audit" in out and "posthog" in out and "estimate" in out.lower()
+
+
+def test_detect_project_type_code_by_extension(tmp_path):
+    mod = load_mod()
+    for i in range(3):
+        (tmp_path / f"mod{i}.py").write_text("x = 1\n")
+    assert mod.detect_project_type(tmp_path) == "code"
+
+def test_detect_project_type_empty_dir_is_unknown(tmp_path):
+    mod = load_mod()
+    # md > 0 guard must prevent an empty dir being miscalled docs-vault
+    assert mod.detect_project_type(tmp_path) == "unknown"
+
+def test_classify_memory_oversized_is_auto_safe():
+    mod = load_mod()
+    cfg = mod.load_config(None)  # caps: MEMORY.md 200, brain.md 60, typed 40
+    mem = {"dir": "/x", "files": [
+        {"name": "brain.md", "bytes": 4000, "lines": 90},        # over 60 cap
+        {"name": "feedback_a.md", "bytes": 400, "lines": 10},    # typed, under 40
+    ]}
+    items = mod._classify_memory(mem, cfg)
+    by = {i["name"]: i for i in items}
+    assert by["brain.md"]["verdict"] == "oversized" and by["brain.md"]["tier"] == "auto-safe"
+    assert "action" in by["brain.md"]
+    assert by["feedback_a.md"]["verdict"] == "ok" and by["feedback_a.md"]["tier"] == "none"
+
+def test_build_report_includes_oversized_memory_in_auto_total(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / ".claude").mkdir(parents=True)
+    proj = tmp_path / "proj"; proj.mkdir()
+    slug = mod.slug_for(proj)
+    memdir = home / ".claude" / "projects" / slug / "memory"
+    memdir.mkdir(parents=True)
+    (memdir / "brain.md").write_text("line\n" * 90)  # 91 lines > 60 cap
+    rep = mod.build_report(home, proj, mod.load_config(None))
+    mem_item = next(i for i in rep["items"] if i["name"] == "brain.md")
+    assert mem_item["tier"] == "auto-safe"
+    assert rep["totals"]["est_reclaimable_auto"] >= mem_item["est_tokens"]

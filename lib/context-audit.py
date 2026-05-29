@@ -16,6 +16,9 @@ DEFAULTS = {
     "memory_caps_lines": {"MEMORY.md": 200, "brain.md": 60, "typed": 40},
 }
 
+def _warn(msg):
+    print(f"context-audit: warning: {msg}", file=sys.stderr)
+
 def load_config(path):
     cfg = json.loads(json.dumps(DEFAULTS))  # deep copy
     if path and Path(path).exists():
@@ -80,8 +83,8 @@ def detect_project_signals(project_path):
             for sec in ("dependencies", "devDependencies", "peerDependencies"):
                 for name in (d.get(sec) or {}):
                     sigs.add(f"dep:{name}")
-        except Exception:
-            pass
+        except Exception as e:
+            _warn(f"could not parse {pkg}: {e}; skipping dependency signals")
     for reqfile in ("requirements.txt", "pyproject.toml"):
         f = project_path / reqfile
         if f.exists():
@@ -103,7 +106,8 @@ def load_claude_json(home):
         return {}
     try:
         return json.loads(p.read_text())
-    except Exception:
+    except Exception as e:
+        _warn(f"could not parse {p}: {e}; treating as empty")
         return {}
 
 def discover_mcp_servers(home, project_path):
@@ -120,8 +124,8 @@ def discover_mcp_servers(home, project_path):
             d = json.loads(mcpjson.read_text())
             for name in (d.get("mcpServers") or {}):
                 servers.append({"name": name, "scope": "project-mcpjson"})
-        except Exception:
-            pass
+        except Exception as e:
+            _warn(f"could not parse {mcpjson}: {e}; skipping project .mcp.json servers")
     return servers
 
 def dedupe_servers(servers):
@@ -142,7 +146,8 @@ def settings_files(home, project_path):
 def _read_json(path):
     try:
         return json.loads(Path(path).read_text())
-    except Exception:
+    except Exception as e:
+        _warn(f"could not parse {path}: {e}; treating as empty")
         return {}
 
 def discover_plugins(home, project_path):
