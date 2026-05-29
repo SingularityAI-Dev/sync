@@ -15,3 +15,17 @@ DEFAULTS = {
     "domain_signals": {},
     "memory_caps_lines": {"MEMORY.md": 200, "brain.md": 60, "typed": 40},
 }
+
+def load_config(path):
+    cfg = json.loads(json.dumps(DEFAULTS))  # deep copy
+    if path and Path(path).exists():
+        user = json.loads(Path(path).read_text())
+        for k, v in user.items():
+            if isinstance(v, dict) and isinstance(cfg.get(k), dict):
+                cfg[k].update(v)
+            else:
+                cfg[k] = v
+    return cfg
+
+def slug_for(project_path):
+    return str(Path(project_path)).replace("/", "-")
