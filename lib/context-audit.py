@@ -179,3 +179,41 @@ def est_server_tokens(name, cfg):
 
 def est_memory_tokens(nbytes, cfg):
     return nbytes // cfg["memory_chars_per_token"]
+
+def is_value_earning(name, cfg):
+    if name in cfg["value_earning"]["names"]:
+        return True
+    sigs = cfg["value_earning"]["tool_signatures"]
+    return any(sig in name.lower() for sig in sigs)
+
+def _flag(base, scope, name, reason, cfg):
+    # Too small to be worth acting on: report as unused but take no action.
+    if base["est_tokens"] < cfg["min_flag_tokens"]:
+        return {**base, "verdict": "unused", "tier": "none", "reason": reason + " (below action threshold)"}
+    if scope == "project-mcpjson":
+        return {**base, "verdict": "unused", "tier": "auto-safe", "reason": reason,
+                "action": "add to disabledMcpjsonServers in project .claude/settings.json"}
+    if scope == "project-user":
+        cmd = f"claude mcp remove {name}  # project-scoped server; remove if unused here"
+    else:
+        cmd = f"claude mcp remove {name} -s user  # or re-scope to only the projects that use it"
+    return {**base, "verdict": "unused", "tier": "recommend", "reason": reason, "fix_command": cmd}
+
+def classify_server(server, project_type, project_signals, cfg):
+    name, scope = server["name"], server["scope"]
+    est, tc = est_server_tokens(name, cfg)
+    base = {"category": "mcp", "name": name, "scope": scope, "est_tokens": est, "tool_count": tc}
+    if name in cfg["infra_never_touch"]["names"]:
+        return {**base, "verdict": "used", "tier": "none", "reason": "infra (never trimmed)"}
+    if is_value_earning(name, cfg):
+        if project_type == "code":
+            return {**base, "verdict": "used", "tier": "none",
+                    "reason": "value-earning (reduces consumption) on code project"}
+        return _flag(base, scope, name,
+                     f"value-earning server but project type is {project_type}: no code to analyze", cfg)
+    signals = cfg["domain_signals"].get(name)
+    if signals is not None:
+        if any(s in project_signals for s in signals):
+            return {**base, "verdict": "used", "tier": "none", "reason": "domain signal present"}
+        return _flag(base, scope, name, "domain server with no matching project signal", cfg)
+    return {**base, "verdict": "uncertain", "tier": "none", "reason": "unclassified; sync.md applies judgment"}

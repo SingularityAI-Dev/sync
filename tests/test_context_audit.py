@@ -125,3 +125,57 @@ def test_est_memory_tokens():
     mod = load_mod()
     cfg = mod.load_config(None)
     assert mod.est_memory_tokens(400, cfg) == 100
+
+
+def _cfg(mod):
+    cfg = mod.load_config(None)
+    cfg.update({
+        "known_tool_counts": {"jcodemunch": 80, "posthog": 30},
+        "value_earning": {"names": ["jcodemunch"], "tool_signatures": ["search", "symbol"]},
+        "infra_never_touch": {"names": ["context7"], "plugins": []},
+        "domain_signals": {"posthog": ["dep:posthog-js"]},
+        "min_flag_tokens": 1000,
+    })
+    return cfg
+
+def test_classify_value_earning_kept_on_code():
+    mod = load_mod()
+    r = mod.classify_server({"name": "jcodemunch", "scope": "global"}, "code", set(), _cfg(mod))
+    assert r["verdict"] == "used" and r["tier"] == "none"
+
+def test_classify_value_earning_flagged_on_vault():
+    mod = load_mod()
+    r = mod.classify_server({"name": "jcodemunch", "scope": "global"}, "docs-vault", set(), _cfg(mod))
+    assert r["verdict"] == "unused" and r["tier"] == "recommend"
+    assert "fix_command" in r
+
+def test_classify_infra_never_touched():
+    mod = load_mod()
+    r = mod.classify_server({"name": "context7", "scope": "global"}, "docs-vault", set(), _cfg(mod))
+    assert r["tier"] == "none" and r["verdict"] == "used"
+
+def test_classify_domain_used_when_signal_present():
+    mod = load_mod()
+    r = mod.classify_server({"name": "posthog", "scope": "global"}, "code", {"dep:posthog-js"}, _cfg(mod))
+    assert r["verdict"] == "used"
+
+def test_classify_domain_unused_when_no_signal():
+    mod = load_mod()
+    r = mod.classify_server({"name": "posthog", "scope": "global"}, "code", set(), _cfg(mod))
+    assert r["verdict"] == "unused" and r["tier"] == "recommend"
+
+def test_classify_project_mcpjson_is_auto_safe():
+    mod = load_mod()
+    r = mod.classify_server({"name": "posthog", "scope": "project-mcpjson"}, "code", set(), _cfg(mod))
+    assert r["tier"] == "auto-safe" and "disabledMcpjsonServers" in r["action"]
+
+def test_classify_unknown_is_uncertain():
+    mod = load_mod()
+    r = mod.classify_server({"name": "mysterymcp", "scope": "global"}, "code", set(), _cfg(mod))
+    assert r["verdict"] == "uncertain" and r["tier"] == "none"
+
+def test_classify_below_min_flag_tokens_not_actioned():
+    mod = load_mod()
+    cfg = _cfg(mod); cfg["min_flag_tokens"] = 1_000_000
+    r = mod.classify_server({"name": "posthog", "scope": "project-mcpjson"}, "code", set(), cfg)
+    assert r["verdict"] == "unused" and r["tier"] == "none"
