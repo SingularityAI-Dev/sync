@@ -179,3 +179,30 @@ def test_classify_below_min_flag_tokens_not_actioned():
     cfg = _cfg(mod); cfg["min_flag_tokens"] = 1_000_000
     r = mod.classify_server({"name": "posthog", "scope": "project-mcpjson"}, "code", set(), cfg)
     assert r["verdict"] == "unused" and r["tier"] == "none"
+
+
+def test_build_report_end_to_end(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / ".claude").mkdir(parents=True)
+    proj = tmp_path / "proj"; proj.mkdir()
+    (proj / "package.json").write_text('{"dependencies": {"react": "1"}}')  # => code project
+    _write_claude_json(home, {"mcpServers": {"jcodemunch": {}, "posthog": {}}})
+    cfg = _cfg(mod)
+    rep = mod.build_report(home, proj, cfg)
+    assert rep["project_type"] == "code"
+    names = {i["name"]: i for i in rep["items"]}
+    assert names["jcodemunch"]["verdict"] == "used"      # value-earning kept on code
+    assert names["posthog"]["verdict"] == "unused"        # domain, no signal
+    assert rep["totals"]["est_reclaimable_recommend"] >= names["posthog"]["est_tokens"]
+    ests = [i["est_tokens"] for i in rep["items"] if i["category"] == "mcp"]
+    assert ests == sorted(ests, reverse=True)
+
+def test_format_text_smoke(tmp_path):
+    mod = load_mod()
+    rep = {"project_type": "code", "slug": "-x", "items": [
+        {"category": "mcp", "name": "posthog", "est_tokens": 4500, "verdict": "unused",
+         "tier": "recommend", "reason": "r", "fix_command": "do x"}],
+        "totals": {"est_loaded": 4500, "est_reclaimable_auto": 0, "est_reclaimable_recommend": 4500},
+        "uncertain": []}
+    out = mod.format_text(rep)
+    assert "Context Audit" in out and "posthog" in out and "estimate" in out.lower()

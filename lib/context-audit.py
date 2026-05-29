@@ -217,3 +217,75 @@ def classify_server(server, project_type, project_signals, cfg):
             return {**base, "verdict": "used", "tier": "none", "reason": "domain signal present"}
         return _flag(base, scope, name, "domain server with no matching project signal", cfg)
     return {**base, "verdict": "uncertain", "tier": "none", "reason": "unclassified; sync.md applies judgment"}
+
+def _classify_memory(mem, cfg):
+    items = []
+    caps = cfg["memory_caps_lines"]
+    for f in mem["files"]:
+        est = est_memory_tokens(f["bytes"], cfg)
+        if f["name"] in ("MEMORY.md", "brain.md"):
+            cap = caps.get(f["name"])
+        else:
+            cap = caps.get("typed")
+        over = cap is not None and f["lines"] > cap
+        items.append({
+            "category": "memory", "name": f["name"], "est_tokens": est,
+            "verdict": "oversized" if over else "ok",
+            "tier": "auto-safe" if over else "none",
+            "reason": f"{f['lines']} lines vs cap {cap}" if over else "within cap",
+            **({"action": "prune in /sync Step 5 memory write"} if over else {}),
+        })
+    return items
+
+def build_report(home, project_path, cfg):
+    ptype = detect_project_type(project_path)
+    signals = detect_project_signals(project_path)
+    servers = dedupe_servers(discover_mcp_servers(home, project_path))
+    items = [classify_server(s, ptype, signals, cfg) for s in servers]
+    items += _classify_memory(measure_memory(home, project_path), cfg)
+    for p in discover_plugins(home, project_path):
+        verdict = "used" if p["name"].split("@")[0] in cfg["infra_never_touch"]["plugins"] else "uncertain"
+        items.append({"category": "plugin", "name": p["name"], "est_tokens": 0,
+                      "verdict": verdict, "tier": "none", "reason": f"from {p['source']}"})
+    for h in discover_hooks(home, project_path):
+        items.append({"category": "hook", "name": f"{h['event']}({h['count']})", "est_tokens": 0,
+                      "verdict": "info", "tier": "none", "reason": f"from {h['source']}"})
+    items.sort(key=lambda i: -i.get("est_tokens", 0))
+    auto = sum(i["est_tokens"] for i in items if i.get("tier") == "auto-safe")
+    rec = sum(i["est_tokens"] for i in items if i.get("tier") == "recommend")
+    loaded = sum(i.get("est_tokens", 0) for i in items)
+    return {
+        "project_type": ptype, "slug": slug_for(project_path), "items": items,
+        "totals": {"est_loaded": loaded, "est_reclaimable_auto": auto, "est_reclaimable_recommend": rec},
+        "uncertain": [i["name"] for i in items if i["verdict"] == "uncertain"],
+    }
+
+def format_text(rep):
+    lines = [f"Context Audit (project type: {rep['project_type']}) — token figures are estimates; effect is next-session"]
+    t = rep["totals"]
+    lines.append(f"  Loaded ~{t['est_loaded']//1000}k est; reclaimable here: ~{t['est_reclaimable_auto']//1000}k auto, ~{t['est_reclaimable_recommend']//1000}k via recommendations.")
+    lines.append(f"  {'cat':<8}{'item':<22}{'est':>7}  {'verdict':<10}{'action'}")
+    for i in rep["items"]:
+        action = i.get("action") or i.get("fix_command") or i["tier"]
+        lines.append(f"  {i['category']:<8}{i['name'][:21]:<22}{i.get('est_tokens',0):>7}  {i['verdict']:<10}{action}")
+    if not any(i["tier"] in ("auto-safe", "recommend") for i in rep["items"]):
+        lines.append("  Nothing material.")
+    return "\n".join(lines)
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Context audit for /sync")
+    ap.add_argument("--project", default=os.getcwd())
+    ap.add_argument("--home", default=os.path.expanduser("~"))
+    ap.add_argument("--config", default=str(Path(__file__).resolve().parent / "context-audit.config.json"))
+    ap.add_argument("--format", choices=["json", "text"], default="json")
+    args = ap.parse_args(argv)
+    cfg = load_config(args.config)
+    rep = build_report(Path(args.home), Path(args.project), cfg)
+    if args.format == "text":
+        print(format_text(rep))
+    else:
+        print(json.dumps(rep, indent=2))
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
