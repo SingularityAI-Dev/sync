@@ -94,3 +94,40 @@ def detect_project_signals(project_path):
     if host:
         sigs.add(f"gitremote:{host}")
     return sigs
+
+_SCOPE_RANK = {"global": 0, "project-user": 1, "project-mcpjson": 2}
+
+def load_claude_json(home):
+    p = Path(home) / ".claude.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return {}
+
+def discover_mcp_servers(home, project_path):
+    cj = load_claude_json(home)
+    servers = []
+    for name in (cj.get("mcpServers") or {}):
+        servers.append({"name": name, "scope": "global"})
+    pnode = (cj.get("projects") or {}).get(str(Path(project_path))) or {}
+    for name in (pnode.get("mcpServers") or {}):
+        servers.append({"name": name, "scope": "project-user"})
+    mcpjson = Path(project_path) / ".mcp.json"
+    if mcpjson.exists():
+        try:
+            d = json.loads(mcpjson.read_text())
+            for name in (d.get("mcpServers") or {}):
+                servers.append({"name": name, "scope": "project-mcpjson"})
+        except Exception:
+            pass
+    return servers
+
+def dedupe_servers(servers):
+    best = {}
+    for s in servers:
+        cur = best.get(s["name"])
+        if cur is None or _SCOPE_RANK[s["scope"]] > _SCOPE_RANK[cur["scope"]]:
+            best[s["name"]] = s
+    return list(best.values())

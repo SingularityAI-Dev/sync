@@ -55,3 +55,28 @@ def test_detect_project_signals_deps_and_files(tmp_path):
     assert "dep:next" in sigs
     assert "dep:posthog-js" in sigs
     assert "file:vercel.json" in sigs
+
+def _write_claude_json(home, data):
+    (home / ".claude.json").write_text(__import__("json").dumps(data))
+
+def test_discover_mcp_global_and_project(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; home.mkdir()
+    proj = tmp_path / "proj"; proj.mkdir()
+    _write_claude_json(home, {
+        "mcpServers": {"jcodemunch": {}, "posthog": {}},
+        "projects": {str(proj): {"mcpServers": {"localthing": {}}}},
+    })
+    (proj / ".mcp.json").write_text('{"mcpServers": {"projsrv": {}}}')
+    servers = mod.discover_mcp_servers(home, proj)
+    by = {s["name"]: s["scope"] for s in servers}
+    assert by["jcodemunch"] == "global"
+    assert by["posthog"] == "global"
+    assert by["localthing"] == "project-user"
+    assert by["projsrv"] == "project-mcpjson"
+
+def test_dedupe_servers_prefers_specific_scope():
+    mod = load_mod()
+    raw = [{"name": "x", "scope": "global"}, {"name": "x", "scope": "project-mcpjson"}]
+    out = mod.dedupe_servers(raw)
+    assert len(out) == 1 and out[0]["scope"] == "project-mcpjson"
