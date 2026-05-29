@@ -1,0 +1,22 @@
+{
+  "per_tool_tokens": 150,
+  "default_tool_count": 25,
+  "memory_chars_per_token": 4,
+  "min_flag_tokens": 1000,
+  "known_tool_counts": {
+    "jcodemunch": 80
+  },
+  "value_earning": {
+    "names": ["jcodemunch"],
+    "tool_signatures": ["search", "symbol", "context", "outline", "reference", "dependency", "hierarchy", "blast_radius"]
+  },
+  "infra_never_touch": {
+    "names": ["context7"],
+    "plugins": ["superpowers"]
+  },
+  "domain_signals": {
+    "posthog": ["dep:posthog", "dep:posthog-js", "dep:posthog-node"],
+    "modular9": ["file:.modular9", "dep:modular9"]
+  },
+  "memory_caps_lines": { "MEMORY.md": 200, "brain.md": 60, "typed": 40 }
+}
