@@ -31,3 +31,27 @@ def test_load_config_none_returns_defaults():
 def test_slug_for():
     mod = load_mod()
     assert mod.slug_for(Path("/Users/x/dev/Foo")) == "-Users-x-dev-Foo"
+
+def test_detect_project_type_code_manifest(tmp_path):
+    mod = load_mod()
+    (tmp_path / "package.json").write_text("{}")
+    assert mod.detect_project_type(tmp_path) == "code"
+
+def test_detect_project_type_docs_vault(tmp_path):
+    mod = load_mod()
+    (tmp_path / "SOUL.md").write_text("# soul")
+    assert mod.detect_project_type(tmp_path) == "docs-vault"
+
+def test_detect_project_type_unknown(tmp_path):
+    mod = load_mod()
+    (tmp_path / "notes.txt").write_text("hi")
+    assert mod.detect_project_type(tmp_path) == "unknown"
+
+def test_detect_project_signals_deps_and_files(tmp_path):
+    mod = load_mod()
+    (tmp_path / "package.json").write_text('{"dependencies": {"next": "1", "posthog-js": "1"}}')
+    (tmp_path / "vercel.json").write_text("{}")
+    sigs = mod.detect_project_signals(tmp_path)
+    assert "dep:next" in sigs
+    assert "dep:posthog-js" in sigs
+    assert "file:vercel.json" in sigs
