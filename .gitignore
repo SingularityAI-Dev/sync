@@ -5,4 +5,4 @@ __pycache__/
 
 # Ignore everything under docs/ except the how-it-works writeup
 docs/*
-!docs/how-sync-works.docx
+!docs/how-sync-works.md
