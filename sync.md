@@ -48,7 +48,7 @@ Do not write CHANGELOG, STATUS, brain.md, typed memory, or Second_Brain dispatch
 | Has subdirs that each look like vaults (any with `SOUL.md`) and a `Vaults/` lineage in path | **Orchestrator mode** | Multi-vault parent. Don't write inside child vaults. |
 | Otherwise (regular repo or directory that passed Step 1a) | **Project mode** | Write the standard trio: CHANGELOG, STATUS, brain. |
 
-In **Project mode**, also check whether `~/development/Vaults/Second_Brain/` exists. If yes, **dispatch is enabled**: a compressed update will be written into Second_Brain so cross-project state compounds. If not, skip dispatch silently.
+In **Project mode**, cross-project **dispatch** into a Second_Brain vault is optional, never a prerequisite. The dispatch root is configurable via `second_brain_path` in `lib/context-audit.config.json` (default `~/development/Vaults/Second_Brain`; set it to `""` to disable). The context-audit helper (Step 1c) resolves it and reports a `second_brain` block: `{ path, exists, dispatch_enabled }`. **Dispatch is enabled only when `dispatch_enabled` is true** (the configured directory exists); write under the reported `second_brain.path`. If the helper did not run or is unavailable, read `second_brain_path` from the config yourself and check it; if it is blank or the directory is missing, skip dispatch silently. A user with no such vault loses nothing else: every other artifact still writes.
 
 `<project-slug>` is the cwd path with `/` replaced by `-`, leading `-` preserved. Example: `/Users/rainierpotgieter/development/Foo` becomes `-Users-rainierpotgieter-development-Foo`.
 
@@ -78,7 +78,7 @@ Skip this step entirely in vault and orchestrator mode.
 | `brain.md` | `~/.claude/projects/<slug>/memory/brain.md` | ~60 lines | Durable per-project session memory |
 | `MEMORY.md` | `~/.claude/projects/<slug>/memory/MEMORY.md` | <200 lines | Auto-memory index. Must point at `brain.md`. |
 | Typed memory files | `~/.claude/projects/<slug>/memory/<type>_<slug>.md` | small | `feedback_*`, `project_*`, `reference_*`, `user_*` per global schema |
-| Second_Brain dispatch | `Vaults/Second_Brain/daily/YYYY-MM-DD.md` (append) + `MEMORY.md` "Active Projects" line | 1-3 lines per sync | Cross-project consciousness |
+| Second_Brain dispatch (optional) | `<second_brain.path>/daily/YYYY-MM-DD.md` (append) + that vault's `MEMORY.md` "Active Projects" line | 1-3 lines per sync | Cross-project consciousness. Only when `second_brain.dispatch_enabled`. |
 
 ### Vault mode (inside Second_Brain or Second_Brain_Hermes)
 
@@ -213,7 +213,7 @@ MEMORY.md format (the index, no frontmatter, ≤200 lines):
 
 Always keep `[Brain](brain.md)` as the first entry. Add lines for typed files when created. Remove lines when files deleted. Update hooks when descriptions drift.
 
-**Second_Brain dispatch** (only if `~/development/Vaults/Second_Brain/` exists):
+**Second_Brain dispatch** (only if Step 1c reported `second_brain.dispatch_enabled: true`; write under the resolved `second_brain.path`, written `Second_Brain/` below for brevity):
 
 1. **Append to `Second_Brain/daily/YYYY-MM-DD.md`.** Create if missing. Block format:
    ```markdown

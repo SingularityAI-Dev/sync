@@ -244,3 +244,45 @@ def test_build_report_includes_oversized_memory_in_auto_total(tmp_path):
     mem_item = next(i for i in rep["items"] if i["name"] == "brain.md")
     assert mem_item["tier"] == "auto-safe"
     assert rep["totals"]["est_reclaimable_auto"] >= mem_item["est_tokens"]
+
+
+def test_resolve_second_brain_disabled_when_missing(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; home.mkdir()
+    cfg = mod.load_config(None)  # default path "~/development/Vaults/Second_Brain"
+    sb = mod.resolve_second_brain(cfg, home)
+    # ~ expands against the given home, which has no such dir -> dispatch off
+    assert sb["path"].endswith("/development/Vaults/Second_Brain")
+    assert sb["exists"] is False and sb["dispatch_enabled"] is False
+
+def test_resolve_second_brain_enabled_when_dir_exists(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"
+    (home / "development" / "Vaults" / "Second_Brain").mkdir(parents=True)
+    sb = mod.resolve_second_brain(mod.load_config(None), home)
+    assert sb["exists"] is True and sb["dispatch_enabled"] is True
+
+def test_resolve_second_brain_custom_path_via_config(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; home.mkdir()
+    vault = tmp_path / "elsewhere" / "MyBrain"; vault.mkdir(parents=True)
+    cfg = mod.load_config(None); cfg["second_brain_path"] = str(vault)
+    sb = mod.resolve_second_brain(cfg, home)
+    assert sb["path"] == str(vault)
+    assert sb["dispatch_enabled"] is True
+
+def test_resolve_second_brain_blank_disables(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / "development").mkdir(parents=True)
+    cfg = mod.load_config(None); cfg["second_brain_path"] = ""
+    sb = mod.resolve_second_brain(cfg, home)
+    assert sb["configured"] == "" and sb["path"] is None
+    assert sb["dispatch_enabled"] is False
+
+def test_build_report_includes_second_brain_block(tmp_path):
+    mod = load_mod()
+    home = tmp_path / "home"; (home / ".claude").mkdir(parents=True)
+    proj = tmp_path / "proj"; proj.mkdir()
+    rep = mod.build_report(home, proj, mod.load_config(None))
+    assert "second_brain" in rep
+    assert set(rep["second_brain"]) == {"configured", "path", "exists", "dispatch_enabled"}

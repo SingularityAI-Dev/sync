@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Context audit for /sync. See docs/superpowers/specs/2026-05-29-sync-context-audit-design.md."""
+"""Context audit for /sync. See docs/how-sync-works.md for the design rationale."""
 from __future__ import annotations
 import argparse, json, os, re, sys
 from pathlib import Path
@@ -14,6 +14,9 @@ DEFAULTS = {
     "infra_never_touch": {"names": [], "plugins": []},
     "domain_signals": {},
     "memory_caps_lines": {"MEMORY.md": 200, "brain.md": 60, "typed": 40},
+    # Cross-project dispatch target. Optional: dispatch only activates if this
+    # directory exists. Set to "" to disable dispatch regardless of the filesystem.
+    "second_brain_path": "~/development/Vaults/Second_Brain",
 }
 
 def _warn(msg):
@@ -242,6 +245,26 @@ def _classify_memory(mem, cfg):
         })
     return items
 
+def resolve_second_brain(cfg, home):
+    """Resolve the configured Second_Brain dispatch root and whether dispatch fires.
+
+    Dispatch is a bonus, never a prerequisite: it activates only when the configured
+    directory exists. The path is configurable via `second_brain_path` in the config;
+    set it to "" (or remove it) to disable dispatch regardless of the filesystem.
+    `~` expands against the given `home`, so the result is deterministic and testable.
+    """
+    raw = (cfg.get("second_brain_path") or "").strip()
+    if not raw:
+        return {"configured": "", "path": None, "exists": False, "dispatch_enabled": False}
+    expanded = os.path.expandvars(raw)
+    if expanded == "~":
+        expanded = str(Path(home))
+    elif expanded.startswith("~/"):
+        expanded = str(Path(home) / expanded[2:])
+    path = Path(expanded)
+    exists = path.is_dir()
+    return {"configured": raw, "path": str(path), "exists": exists, "dispatch_enabled": exists}
+
 def build_report(home, project_path, cfg):
     ptype = detect_project_type(project_path)
     signals = detect_project_signals(project_path)
@@ -263,6 +286,7 @@ def build_report(home, project_path, cfg):
         "project_type": ptype, "slug": slug_for(project_path), "items": items,
         "totals": {"est_loaded": loaded, "est_reclaimable_auto": auto, "est_reclaimable_recommend": rec},
         "uncertain": [i["name"] for i in items if i["verdict"] == "uncertain"],
+        "second_brain": resolve_second_brain(cfg, home),
     }
 
 def format_text(rep):
@@ -275,6 +299,13 @@ def format_text(rep):
         lines.append(f"  {i['category']:<8}{i['name'][:21]:<22}{i.get('est_tokens',0):>7}  {i['verdict']:<10}{action}")
     if not any(i["tier"] in ("auto-safe", "recommend") for i in rep["items"]):
         lines.append("  Nothing material.")
+    sb = rep.get("second_brain") or {}
+    if sb.get("dispatch_enabled"):
+        lines.append(f"  Second_Brain dispatch: enabled ({sb['path']})")
+    elif sb.get("configured"):
+        lines.append(f"  Second_Brain dispatch: disabled (configured path not found: {sb['configured']})")
+    else:
+        lines.append("  Second_Brain dispatch: disabled (no path configured)")
     return "\n".join(lines)
 
 def main(argv=None):

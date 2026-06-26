@@ -57,6 +57,12 @@ Past the guard, `/sync` classifies the directory and writes the artifacts that m
 - **Vault mode.** Inside a Second_Brain or Second_Brain_Hermes vault (detected by `SOUL.md` + `HEARTBEAT.md` + `daily/`). Appends a timestamped block to `daily/YYYY-MM-DD.md`, updates the vault `CHANGELOG.md` only if something real shipped, and never touches the identity layer: `SOUL.md`, `USER.md`, `HEARTBEAT.md`, `HABITS.md`, and `MEMORY.md` are off-limits because reflection and the user own those.
 - **Orchestrator mode.** At the `Vaults/` root that parents multiple vaults. Maintains only its own `CHANGELOG.md` / `STATUS.md` if they exist, never writes inside child vaults, and ends the report by nudging you to run `/sync` inside the specific vault instead.
 
+> [!NOTE]
+> **Second_Brain dispatch is optional. You do not need a vault to use `/sync`.**
+> The cross-project dispatch only fires in project mode when a configured vault directory exists. If it does not, `/sync` skips the dispatch silently and everything else, the `CHANGELOG.md` / `STATUS.md` / `brain.md` trio, the auto-memory wiring, typed memory, and the full Context Audit, runs exactly the same. The dispatch is a bonus for users who keep a Second_Brain style memory vault; it is not a prerequisite.
+>
+> **Pointing it at your vault (or turning it off).** The dispatch root is the `second_brain_path` key in [`lib/context-audit.config.json`](lib/context-audit.config.json), default `~/development/Vaults/Second_Brain`. Set it to your own vault path to enable dispatch there, or set it to `""` to disable dispatch entirely regardless of the filesystem. The Context Audit pre-run resolves it and reports a `second_brain` block (`path`, `exists`, `dispatch_enabled`) so you can see at a glance whether dispatch is on for this machine.
+
 ---
 
 ## The sync pass

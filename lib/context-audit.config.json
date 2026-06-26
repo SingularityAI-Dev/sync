@@ -18,5 +18,6 @@
     "posthog": ["dep:posthog", "dep:posthog-js", "dep:posthog-node"],
     "modular9": ["file:.modular9", "dep:modular9"]
   },
-  "memory_caps_lines": { "MEMORY.md": 200, "brain.md": 60, "typed": 40 }
+  "memory_caps_lines": { "MEMORY.md": 200, "brain.md": 60, "typed": 40 },
+  "second_brain_path": "~/development/Vaults/Second_Brain"
 }

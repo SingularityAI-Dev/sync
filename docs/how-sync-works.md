@@ -57,6 +57,9 @@ flowchart TD
 | **Vault** | Inside `Second_Brain` or `Second_Brain_Hermes` | Appends a timestamped reflection line; **never** touches the sacred `SOUL` / `USER` / `HEARTBEAT` / `HABITS` files |
 | **Orchestrator** | At the `Vaults/` root | Coordinates cross-vault state only |
 
+> [!NOTE]
+> **The Second_Brain dispatch in project mode is optional and configurable.** You do not need a vault to use `/sync`; without one, every other artifact still writes and the dispatch is simply skipped. The dispatch root is the `second_brain_path` key in `lib/context-audit.config.json` (default `~/development/Vaults/Second_Brain`). Point it at your own vault to enable dispatch, or set it to `""` to turn it off. The Context Audit pre-run resolves the path and reports `second_brain.dispatch_enabled` so you can confirm whether it is active on this machine.
+
 ---
 
 ## New: the Context Audit pre-run (Step 1c)
