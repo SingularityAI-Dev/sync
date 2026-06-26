@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 .pytest_cache/
+
+# Ignore everything under docs/ except the how-it-works writeup
+docs/*
+!docs/how-sync-works.docx
