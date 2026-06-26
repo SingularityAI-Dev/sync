@@ -226,4 +226,4 @@ The suite asserts verdicts and action tiers for seeded servers and a synthetic u
 - The config (`lib/context-audit.config.json`) is the only thing a new user should need to edit. Paths derive from `$HOME` and the project path.
 - The command body is the source of truth. The helper is deterministic and never applies actions on its own; judgment lives in `sync.md`, determinism lives in the helper.
 
-See [CLAUDE.md](CLAUDE.md) before editing so changes stay consistent with the command's contract, and [docs/superpowers/specs/2026-05-29-sync-context-audit-design.md](docs/superpowers/specs/2026-05-29-sync-context-audit-design.md) for the full design rationale and the verified Claude Code constraints behind the action tiers.
+See [CLAUDE.md](CLAUDE.md) before editing so changes stay consistent with the command's contract, and [docs/how-sync-works.md](docs/how-sync-works.md) for the full design rationale and the verified Claude Code constraints behind the action tiers.

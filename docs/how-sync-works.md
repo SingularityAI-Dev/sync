@@ -8,6 +8,10 @@
 
 </div>
 
+<p align="center">
+  <img src="assets/hero-modes.svg" alt="/sync reads the current directory, passes a hard guard that refuses to run at system root, then detects one of three modes (project, vault, orchestrator) and writes only the artifacts appropriate to that mode." width="100%"/>
+</p>
+
 ---
 
 ## What `/sync` is for
@@ -23,6 +27,10 @@ It is **architecture-aware**: it detects which of three modes it is running in a
 ---
 
 ## The three modes
+
+<p align="center">
+  <img src="assets/sync-pass.svg" alt="The sync pass reads ground truth, classifies each signal by half-life, then routes only the signals that produced a candidate to CHANGELOG, brain.md plus the MEMORY index, and typed memory files. STATUS is skipped when no candidate exists. A one-line dispatch flows to Second_Brain." width="100%"/>
+</p>
 
 ```mermaid
 flowchart TD
@@ -52,6 +60,10 @@ flowchart TD
 ---
 
 ## New: the Context Audit pre-run (Step 1c)
+
+<p align="center">
+  <img src="assets/context-audit.svg" alt="The context audit discovers MCP servers, plugins, hooks, and auto-memory, estimates token weight, and classifies each item into a verdict and action tier: auto-safe items are applied on confirm, recommend items print an exact command without editing, and infra or unknown items are kept. The jcodemunch case shows the same server kept on a code project and flagged on a docs vault." width="100%"/>
+</p>
 
 Before syncing, `/sync` now discovers the MCP servers, plugins, hooks, and auto-loaded memory this project pulls into the context window, **estimates their token weight**, and flags what is wasted *for this specific project*. It trims the safe, project-scoped items on your confirm and recommends the rest.
 

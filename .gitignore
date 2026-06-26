@@ -3,6 +3,7 @@ __pycache__/
 .DS_Store
 .pytest_cache/
 
-# Ignore everything under docs/ except the how-it-works writeup
+# Ignore everything under docs/ except the how-it-works writeup and rendered diagrams
 docs/*
 !docs/how-sync-works.md
+!docs/assets/
